@@ -1,9 +1,11 @@
 # Format:
 # coursera-queue-name:
 #   cmd: "command to grade assignment"
+#   timout: 60 # timeout in seconds
 #
-# Use a percent sign (%) to indicate the name of a file containing the user's
-# submission
+# In cmd, use a percent sign (%) to indicate the name of a file containing the
+# user's submission
 
-assignment-1-part-1: 
+assign-1-part-1: 
   cmd: "./grade % other-arguments"
+  timeout: 60

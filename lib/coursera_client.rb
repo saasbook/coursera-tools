@@ -6,7 +6,6 @@ require 'base64'
 require_relative 'rag_logger'
 require_relative 'coursera_controller'
 require_relative 'coursera_submission'
-require_relative 'auto_grader'
 require_relative 'auto_grader_subprocess'
 
 class CourseraClient
@@ -38,12 +37,11 @@ class CourseraClient
   def run
     each_submission do |assignment_part_sid, result|
       submission = decode_submission(result)
-      spec = load_spec(assignment_part_sid)
-      grader_type = @autograders[assignment_part_sid][:type]
+      grader_opts = @autograders[assignment_part_sid]
 
       # FIXME: Use non-subprocess version instead
       begin
-        score, comments = run_autograder_subprocess(submission, spec, grader_type) # defined in AutoGraderSubprocess
+        score, comments = run_autograder_subprocess(submission, grader_opts) # defined in AutoGraderSubprocess
       rescue AutoGraderSubprocess::SubprocessError => e
         score = 0
         comments = e.to_s
@@ -93,28 +91,28 @@ class CourseraClient
 
   private
 
-  def load_spec(assignment_part_sid)
-    unless @autograders.include?(assignment_part_sid)
-      logger.fatal "Assignment part #{assignment_part_sid} not found!"
-      raise "Assignment part #{assignment_part_sid} not found!"
-    end
-    autograder = @autograders[assignment_part_sid]
-    return autograder[:uri] if autograder[:uri] !~ /^http/ # Assume that if uri doesn't start with http, then it is a local file path
+  #def load_spec(assignment_part_sid)
+  #  unless @autograders.include?(assignment_part_sid)
+  #    logger.fatal "Assignment part #{assignment_part_sid} not found!"
+  #    raise "Assignment part #{assignment_part_sid} not found!"
+  #  end
+  #  autograder = @autograders[assignment_part_sid]
+  #  return autograder[:uri] if autograder[:uri] !~ /^http/ # Assume that if uri doesn't start with http, then it is a local file path
 
-    # If not in cache, download and add to cache
-    if autograder[:cache].nil?
-      spec_file = Tempfile.new('spec')
-      response = Net::HTTP.get_response(URI(autograder[:uri]))
-      if response.code !~ /2\d\d/
-        logger.fatal "Could not load the spec at #{autograder[:uri]}"
-        raise CourseraClient::SpecNotFound, "Could not load the spec at #{autograder[:uri]}"
-      end
-      spec_file.write(response.body)
-      spec_file.close
-      autograder[:cache] = spec_file
-    end
-    autograder[:cache].path
-  end
+  #  # If not in cache, download and add to cache
+  #  if autograder[:cache].nil?
+  #    spec_file = Tempfile.new('spec')
+  #    response = Net::HTTP.get_response(URI(autograder[:uri]))
+  #    if response.code !~ /2\d\d/
+  #      logger.fatal "Could not load the spec at #{autograder[:uri]}"
+  #      raise CourseraClient::SpecNotFound, "Could not load the spec at #{autograder[:uri]}"
+  #    end
+  #    spec_file.write(response.body)
+  #    spec_file.close
+  #    autograder[:cache] = spec_file
+  #  end
+  #  autograder[:cache].path
+  #end
 
   def run_autograder(submission, spec, grader_type)
     g = AutoGrader.create('1', grader_type, submission, :spec => spec)
@@ -184,7 +182,7 @@ class CourseraClient
             next
           end
           all_empty = false
-          result = @controller.get_pending_submission(assignment_part_sid)
+          result = @controller.get_pending_submission(assignment_part_sid, true)
           next if result.nil?
           logger.info "  received submission: #{result['submission_metadata']['submission_id']}"
           logger.debug result['submission_metadata']
