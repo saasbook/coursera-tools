@@ -1,0 +1,9 @@
+# Format:
+# coursera-queue-name:
+#   cmd: "command to grade assignment"
+#
+# Use a percent sign (%) to indicate the name of a file containing the user's
+# submission
+
+assignment-1-part-1: 
+  cmd: "./grade % other-arguments"
