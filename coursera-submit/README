@@ -1,0 +1,8 @@
+To install the submit scripts, run 'sudo rake'.
+
+If using rvm (not on the VM), run 'rvmsudo rake'.
+
+After successfully running the rake task, run 'submit-config' and enter your email and submission password (this only needs to be done once ever).
+
+To submit assignments, 'submit <assignment-part sid> <file to submit>'
+

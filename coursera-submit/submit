@@ -1,0 +1,70 @@
+#!/usr/bin/env ruby
+
+# Submission script that makes a POST to the autograder queue.
+#
+# To install in VM:
+#   sudo rake
+#
+# USAGE: submit <assignment-and-part> <file-to-submit>
+
+require 'net/http'
+require 'net/https'
+require 'uri'
+require 'json'
+require 'digest/sha1'
+require 'base64'
+
+unless File.exists? File.expand_path("~/.submit_config")
+  puts "Please run submit-config first."
+  exit
+end
+
+unless 2 == ARGV.length
+  puts "usage: submit <assignment-and-part> <file-to-submit>"
+  exit
+end
+
+# config[0] = email, config[1] = submission pw
+config = []
+File.open(File.expand_path("~/.submit_config"), 'r') do |f|
+  while line = f.gets
+    config << line.chomp
+  end
+end
+
+challenge_url = URI.parse("https://berkeley.campus-class.org/saas/assignment/challenge")
+challenge_http = Net::HTTP.new(challenge_url.host, challenge_url.port)
+challenge_http.use_ssl = true
+
+challenge_request = Net::HTTP::Post.new(challenge_url.path)
+challenge_request.set_form_data({"email_address" => config[0]})
+
+challenge_response = challenge_http.start do |h|
+  h.request(challenge_request)
+end
+
+challenge_response_hash = JSON.parse(challenge_response.body)
+challenge_key = challenge_response_hash["challenge_key"]
+sig = challenge_response_hash["state"]
+
+input_file_text = File.open(File.absolute_path(ARGV[1]), 'r') {|f| f.read}
+
+params_hash = {
+  "assignment_part_sid" => ARGV[0],
+  "email_address" => config[0],
+  "submission" => Base64.strict_encode64(input_file_text),
+  "submission_aux" => "",
+  "challenge_response" => Digest::SHA1.hexdigest(challenge_key + config[1]),
+  "state" => sig
+}
+
+submit_url = URI.parse("https://berkeley.campus-class.org/saas/assignment/submit")
+submit_http = Net::HTTP.new(submit_url.host, submit_url.port)
+submit_http.use_ssl = true
+
+submit_request = Net::HTTP::Post.new(submit_url.path)
+submit_request.set_form_data params_hash
+
+submit_response = submit_http.request submit_request
+
+puts submit_response.body

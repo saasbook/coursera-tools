@@ -1,0 +1,9 @@
+#!/bin/bash
+
+echo -n "Enter your email address: "
+read email
+echo -n "Enter your assigment submission password: "
+read pw
+
+echo $email > ~/.submit_config
+echo $pw >> ~/.submit_config
